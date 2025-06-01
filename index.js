@@ -65,7 +65,7 @@ app.get('/api/v1/analises/confrontos-completo/:player1/:player2', async (req, re
             headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQ4Nzc3Mzk1LCJpYXQiOjE3NDg3NzM3OTUsImp0aSI6IjYzNzYxYTdmYmJkZTQ4NGJhNTA5MWEwZmIzNzAxMTQzIiwidXNlcl9pZCI6MTgyfQ._MTDmZNMKBHQl7I3ah_hZQj356rzTXGm8aqJg36dk1Q`,
+                'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQ4ODI1NTM1LCJpYXQiOjE3NDg4MjE5MzUsImp0aSI6ImM4OTM4NmQzYTMwNTQxODdiNzI4ZGJiNTE2ZWU4NWRmIiwidXNlcl9pZCI6MTgyfQ.lQrViP_4DUfr8bGKOGAPzbr22wplDHwdOXJwgLdoBqE`,
                 'Origin': 'https://caveiratips.com',
                 'Referer': 'https://caveiratips.com/',
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
