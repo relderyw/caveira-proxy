@@ -25,8 +25,8 @@ app.get('/api/matches/live', async (req, res) => {
         const data = await response.json();
         res.json(data);
     } catch (error) {
-        console.error('Erro ao buscar dados:', error);
-        res.status(500).json({ error: 'Erro ao buscar dados da API' });
+        console.error('Erro ao buscar dados ao vivo:', error);
+        res.status(500).json({ error: 'Erro ao buscar dados da API ao vivo' });
     }
 });
 
@@ -48,17 +48,17 @@ app.get('/api/historico/partidas', async (req, res) => {
         const data = await response.json();
         res.json(data);
     } catch (error) {
-        console.error('Erro ao buscar dados:', error);
-        res.status(500).json({ error: 'Erro ao buscar dados da API' });
+        console.error('Erro ao buscar dados de jogos finalizados:', error);
+        res.status(500).json({ error: 'Erro ao buscar dados da API de jogos finalizados' });
     }
 });
 
-// Nova rota para proxy de análises H2H
-app.get('/api/h2h/:player1/:player2', async (req, res) => {
+// Nova rota para proxy de análises H2H ajustada para o caminho completo
+app.get('/api/v1/analises/confrontos-completo/:player1/:player2', async (req, res) => {
     try {
         const { player1, player2 } = req.params;
         const url = `https://api.caveiratips.com/api/v1/analises/confrontos-completo/${player1}/${player2}`;
-        console.log(`Proxy: Buscando H2H em ${url}`);
+        console.log(`Proxy: Buscando H2H em ${url} para ${player1} vs ${player2}`);
 
         const response = await fetch(url, {
             method: 'GET',
@@ -78,12 +78,16 @@ app.get('/api/h2h/:player1/:player2', async (req, res) => {
             },
         });
 
+        console.log(`Status da resposta da API H2H: ${response.status} ${response.statusText}`);
+
         if (!response.ok) {
             const errorText = await response.text();
+            console.log(`Detalhes do erro da API H2H: ${errorText}`);
             throw new Error(`Falha na requisição: ${response.status} ${response.statusText}. Detalhes: ${errorText}`);
         }
 
         const data = await response.json();
+        console.log('Dados H2H recebidos:', data);
         res.json(data);
     } catch (error) {
         console.error('Erro ao buscar dados H2H:', error);
