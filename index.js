@@ -53,7 +53,7 @@ app.get('/api/historico/partidas', async (req, res) => {
     }
 });
 
-// Nova rota para proxy de análises H2H ajustada para o caminho completo
+// Rota para proxy de análises H2H
 app.get('/api/v1/analises/confrontos-completo/:player1/:player2', async (req, res) => {
     try {
         const { player1, player2 } = req.params;
@@ -65,7 +65,7 @@ app.get('/api/v1/analises/confrontos-completo/:player1/:player2', async (req, re
             headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQ4NzcxNTg0LCJpYXQiOjE3NDg3Njc5ODQsImp0aSI6IjFlZTcxMzA4ZjQ0MDQwYjI4Nzk0MDM4NThlMTM3ZGU4IiwidXNlcl9pZCI6MTgyfQ.docCFUbkqT2L5qiYHOxBNkMv1JbFj5NvzuJ3apjgI_A`,
+                'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQ4Nzc3Mzk1LCJpYXQiOjE3NDg3NzM3OTUsImp0aSI6IjYzNzYxYTdmYmJkZTQ4NGJhNTA5MWEwZmIzNzAxMTQzIiwidXNlcl9pZCI6MTgyfQ._MTDmZNMKBHQl7I3ah_hZQj356rzTXGm8aqJg36dk1Q`,
                 'Origin': 'https://caveiratips.com',
                 'Referer': 'https://caveiratips.com/',
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
