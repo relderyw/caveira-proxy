@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch'); // Certifique-se de instalar: npm install node-fetch@2
-const jwt = require('jsonwebtoken'); // Para decodificar o token e verificar expiração: npm install jsonwebtoken
+const fetch = require('node-fetch');
 
 const app = express();
 const port = process.env.PORT || 10000;
@@ -9,62 +8,55 @@ const port = process.env.PORT || 10000;
 // Habilitar CORS para todas as origens
 app.use(cors());
 
-// Configuração inicial (pode ser movida para um arquivo .env ou banco de dados)
-let accessToken = 'SEU_ACCESS_TOKEN_INICIAL'; // Substitua pelo token inicial
-let refreshToken = 'SEU_REFRESH_TOKEN'; // Substitua pelo refresh_token inicial
-const authEndpoint = 'https://api.caveiratips.com/api/v1/auth/refresh'; // Endpoint de renovação (confirme na documentação da API)
-const tokenExpirationBuffer = 300; // Buffer de 5 minutos antes da expiração para renovação
+// Variáveis globais para armazenar os tokens
+let accessToken = null;
+let refreshToken = null;
 
-// Função para decodificar o token e verificar expiração
-function isTokenExpired(token) {
+// Função para capturar o token dinamicamente
+async function captureAuthorizationToken() {
   try {
-    const decoded = jwt.decode(token);
-    const currentTime = Math.floor(Date.now() / 1000);
-    return decoded.exp < (currentTime + tokenExpirationBuffer);
-  } catch (error) {
-    console.error('Erro ao decodificar token:', error);
-    return true; // Assume como expirado se houver erro
-  }
-}
-
-// Função para renovar o token
-async function renewToken() {
-  try {
-    const response = await fetch(authEndpoint, {
+    const loginUrl = 'https://api.caveiratips.com/api/v1/auth/login';
+    const response = await fetch(loginUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${refreshToken}`,
+        'Accept': 'application/json',
       },
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      body: JSON.stringify({
+        username: 'assuncao.rw', // Substitua pelo seu e-mail ou usuário real
+        password: '131609@sH',   // Substitua pela sua senha real
+      }),
     });
 
     if (!response.ok) {
-      throw new Error(`Falha ao renovar token: ${response.status} ${response.statusText}`);
+      throw new Error(`Falha ao capturar token: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
-    accessToken = data.access_token; // Atualiza o access_token
-    console.log('Token renovado com sucesso');
-    return accessToken;
+    accessToken = data.access_token;
+    refreshToken = data.refresh_token || null; // Opcional, dependendo da resposta da API
+    console.log('Novo token capturado:', accessToken);
+    return { accessToken, refreshToken };
   } catch (error) {
-    console.error('Erro ao renovar token:', error);
+    console.error('Erro ao capturar token:', error);
     throw error;
   }
 }
 
-// Middleware para verificar e renovar token antes das requisições
+// Middleware para garantir que o token esteja atualizado antes de cada requisição
 async function ensureValidToken(req, res, next) {
-  if (isTokenExpired(accessToken)) {
-    console.log('Token expirado ou próximo da expiração, renovando...');
-    try {
-      accessToken = await renewToken();
-    } catch (error) {
-      return res.status(500).json({ error: 'Falha ao renovar o token de autorização' });
+  try {
+    if (!accessToken) {
+      console.log('Nenhum token disponível, capturando novo token...');
+      const tokens = await captureAuthorizationToken();
+      accessToken = tokens.accessToken;
+      refreshToken = tokens.refreshToken;
     }
+    req.accessToken = accessToken;
+    next();
+  } catch (error) {
+    res.status(500).json({ error: 'Falha ao obter o token de autorização' });
   }
-  req.accessToken = accessToken; // Passa o token para a requisição
-  next();
 }
 
 // Rota para proxy de jogos ao vivo
@@ -157,14 +149,6 @@ app.get('/api/v1/analises/confrontos-completo/:player1/:player2', ensureValidTok
   }
 });
 
-// Iniciar o servidor
 app.listen(port, () => {
   console.log(`Servidor rodando na porta ${port}`);
-});
-
-// Persistência dos tokens (opcional, para reinícios)
-process.on('SIGTERM', () => {
-  console.log('Salvando tokens antes de encerrar...');
-  // Salve accessToken e refreshToken em um arquivo ou banco de dados aqui
-  process.exit(0);
 });
