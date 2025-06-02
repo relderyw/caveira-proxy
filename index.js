@@ -1,30 +1,30 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config(); // Adiciona suporte para variáveis de ambiente
+require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 10000;
 
-// Habilitar CORS para todas as origens
 app.use(cors());
 
-// Variáveis globais para armazenar os tokens
 let accessToken = null;
 let refreshToken = null;
 
-// Função para capturar o token dinamicamente
 async function captureAuthorizationToken() {
   try {
-    const loginUrl = 'https://api.caveiratips.com/api/v1/auth/login';
+    const loginUrl = 'https://api.caveiratips.com/api/v1/auth/token/';
     const response = await fetch(loginUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'Origin': 'https://caveiratips.com',
+        'Referer': 'https://caveiratips.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
       },
       body: JSON.stringify({
-        username: process.env.API_USERNAME, // Usa variável de ambiente
-        password: process.env.API_PASSWORD, // Usa variável de ambiente
+        username: process.env.API_USERNAME,
+        password: process.env.API_PASSWORD,
       }),
     });
 
@@ -33,8 +33,8 @@ async function captureAuthorizationToken() {
     }
 
     const data = await response.json();
-    accessToken = data.access_token;
-    refreshToken = data.refresh_token || null;
+    accessToken = data.access_token; // Ajuste conforme o campo real no JSON retornado
+    refreshToken = data.refresh_token || null; // Ajuste conforme o campo real no JSON retornado
     console.log('Novo token capturado:', accessToken);
     return { accessToken, refreshToken };
   } catch (error) {
@@ -43,7 +43,6 @@ async function captureAuthorizationToken() {
   }
 }
 
-// Middleware para garantir que o token esteja atualizado antes de cada requisição
 async function ensureValidToken(req, res, next) {
   try {
     if (!accessToken) {
@@ -59,7 +58,6 @@ async function ensureValidToken(req, res, next) {
   }
 }
 
-// Rota para proxy de jogos ao vivo
 app.get('/api/matches/live', ensureValidToken, async (req, res) => {
   try {
     const response = await fetch('https://api.caveiratips.com/api/v1/matches/live', {
@@ -83,7 +81,6 @@ app.get('/api/matches/live', ensureValidToken, async (req, res) => {
   }
 });
 
-// Rota para proxy de jogos finalizados
 app.get('/api/historico/partidas', ensureValidToken, async (req, res) => {
   try {
     const response = await fetch('https://api.caveiratips.com/api/v1/historico/partidas?page=1&limit=20', {
@@ -107,7 +104,6 @@ app.get('/api/historico/partidas', ensureValidToken, async (req, res) => {
   }
 });
 
-// Rota para proxy de análises H2H
 app.get('/api/v1/analises/confrontos-completo/:player1/:player2', ensureValidToken, async (req, res) => {
   try {
     const { player1, player2 } = req.params;
