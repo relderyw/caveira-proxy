@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch');
+require('dotenv').config(); // Adiciona suporte para variáveis de ambiente
 
 const app = express();
 const port = process.env.PORT || 10000;
@@ -23,8 +23,8 @@ async function captureAuthorizationToken() {
         'Accept': 'application/json',
       },
       body: JSON.stringify({
-        username: 'assuncao.rw', // Substitua pelo seu e-mail ou usuário real
-        password: '131609@sH',   // Substitua pela sua senha real
+        username: process.env.API_USERNAME, // Usa variável de ambiente
+        password: process.env.API_PASSWORD, // Usa variável de ambiente
       }),
     });
 
@@ -34,7 +34,7 @@ async function captureAuthorizationToken() {
 
     const data = await response.json();
     accessToken = data.access_token;
-    refreshToken = data.refresh_token || null; // Opcional, dependendo da resposta da API
+    refreshToken = data.refresh_token || null;
     console.log('Novo token capturado:', accessToken);
     return { accessToken, refreshToken };
   } catch (error) {
