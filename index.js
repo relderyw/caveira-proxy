@@ -104,45 +104,15 @@ app.get('/api/historico/partidas', ensureValidToken, async (req, res) => {
   }
 });
 
-app.get('/api/v1/analises/confrontos-completo/:player1/:player2', ensureValidToken, async (req, res) => {
-  try {
-    const { player1, player2 } = req.params;
-    const url = `https://api.caveiratips.com/api/v1/analises/confrontos-completo/${player1}/${player2}`;
-    console.log(`Proxy: Buscando H2H em ${url} para ${player1} vs ${player2}`);
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.accessToken}`,
-        'Origin': 'https://caveiratips.com',
-        'Referer': 'https://caveiratips.com/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Falha na requisição: ${response.status} ${response.statusText}. Detalhes: ${errorText}`);
-    }
-
-    const data = await response.json();
-    res.json(data);
-  } catch (error) {
-    console.error('Erro ao buscar dados H2H:', error);
-    res.status(500).json({ error: 'Erro ao buscar dados da API H2H' });
-  }
-});
-
-app.get('/api/historico/partidas-assincrono', ensureValidToken, async (req, res) => {
+app.get('/api/v1/historico/partidas-assincrono', ensureValidToken, async (req, res) => {
   try {
     const { jogador, limit = 10, page = 1 } = req.query;
     if (!jogador) {
       return res.status(400).json({ error: 'Parâmetro "jogador" é obrigatório' });
     }
+
     const url = `https://api.caveiratips.com/api/v1/historico/partidas-assincrono?jogador=${encodeURIComponent(jogador)}&limit=${limit}&page=${page}`;
-    console.log(`Proxy: Buscando histórico em ${url}`);
+    console.log(`Proxy: Buscando histórico assíncrono em ${url}`);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -156,16 +126,20 @@ app.get('/api/historico/partidas-assincrono', ensureValidToken, async (req, res)
       },
     });
 
+    console.log(`Status da resposta da API partidas-assincrono: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.log(`Detalhes do erro da API partidas-assincrono: ${errorText}`);
       throw new Error(`Falha na requisição: ${response.status} ${response.statusText}. Detalhes: ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('Dados partidas-assincrono recebidos:', data);
     res.json(data);
   } catch (error) {
-    console.error('Erro ao buscar histórico de partidas:', error);
-    res.status(500).json({ error: 'Erro ao buscar dados da API de histórico' });
+    console.error('Erro ao buscar dados de partidas assíncronas:', error);
+    res.status(500).json({ error: 'Erro ao buscar dados da API de partidas assíncronas' });
   }
 });
 
