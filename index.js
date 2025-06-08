@@ -23,9 +23,9 @@ async function captureAuthorizationToken() {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
       },
       body: JSON.stringify({
-          username: process.env.API_USERNAME,
-          password: process.env.API_PASSWORD,
-        }),
+        username: process.env.API_USERNAME,
+        password: process.env.API_PASSWORD,
+      }),
     });
 
     if (!response.ok) {
@@ -83,42 +83,42 @@ app.get('/api/matches/live', ensureValidToken, async (req, res) => {
 
 app.get('/api/historico/partidas', ensureValidToken, async (req, res) => {
   try {
-      // Extrair page e limit dos query parameters, com valores padrão
-      const { page = 1, limit = 20 } = req.query;
-      
-      // Validar que page e limit são números positivos
-      const pageNum = parseInt(page, 10);
-      const limitNum = parseInt(limit, 10);
-      if (isNaN(pageNum) || pageNum < 1) {
-          return res.status(400.json({ error: 'Parâmetro "page" deve ser um número positivo' }));
-      }
-      if (isNaN(limitNum) || limitNum < 1) {
-          return res.status(400).json({ error: 'Parámetro "limit" deve ser um número positivo' }));
-      }
+    // Extrair page e limit dos query parameters, com valores padrão
+    const { page = 1, limit = 20 } = req.query;
 
-      // Construir a URL com os parâmetros dinâmicos
-      const url = `https://api.caveiratips.com/api/v1/historico/partidas?page=${pageNum}&limit=${limitNum}`;
-      console.log(`Proxy: Buscando histórico de partidas em ${url}`);
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${req.accessToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Falha na requisição: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      res.json(data);
-    } catch (error) {
-      console.error('Erro ao buscar dados de jogos finalizados:', error);
-      res.status(500).json({ error: 'Erro ao buscar dados da API de jogos finalizados' });
+    // Validar que page e limit são números positivos
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    if (isNaN(pageNum) || pageNum < 1) {
+      return res.status(400).json({ error: 'Parâmetro "page" deve ser um número positivo' });
     }
+    if (isNaN(limitNum) || limitNum < 1) {
+      return res.status(400).json({ error: 'Parâmetro "limit" deve ser um número positivo' });
+    }
+
+    // Construir a URL com os parâmetros dinâmicos
+    const url = `https://api.caveiratips.com/api/v1/historico/partidas?page=${pageNum}&limit=${limitNum}`;
+    console.log(`Proxy: Buscando histórico de partidas em ${url}`);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${req.accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Falha na requisição: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Erro ao buscar dados de jogos finalizados:', error);
+    res.status(500).json({ error: 'Erro ao buscar dados da API de jogos finalizados' });
+  }
 });
 
 app.get('/api/v1/historico/partidas-assincrono', ensureValidToken, async (req, res) => {
