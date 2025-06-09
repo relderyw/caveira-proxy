@@ -163,7 +163,7 @@ app.get('/api/v1/historico/confronto/:player1/:player2', ensureValidToken, async
       return res.status(400).json({ error: 'Parâmetros "player1" e "player2" são obrigatórios' });
     }
 
-    const url = `https://api.caveiratips.com/api/v1/analises/confrontos-completo//${encodeURIComponent(player1)}/${encodeURIComponent(player2)}`;
+    const url = `https://api.caveiratips.com/api/v1/historico/confronto/${encodeURIComponent(player1)}/${encodeURIComponent(player2)}?page=${page}&limit=${limit}`;
     console.log(`Proxy: Buscando confronto H2H em ${url}`);
 
     const response = await fetch(url, {
