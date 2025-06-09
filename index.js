@@ -3,7 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 10000;
+const port = process.env.PORT;
 
 app.use(cors());
 
@@ -38,7 +38,7 @@ async function captureAuthorizationToken() {
     console.log('Novo token capturado:', accessToken);
     return { accessToken, refreshToken };
   } catch (error) {
-    console.error('Erro ao capturar token:', error);
+    console.error('Erro ao capturar token:', error.message);
     throw error;
   }
 }
@@ -83,10 +83,8 @@ app.get('/api/matches/live', ensureValidToken, async (req, res) => {
 
 app.get('/api/historico/partidas', ensureValidToken, async (req, res) => {
   try {
-    // Extrair page e limit dos query parameters, com valores padrão
     const { page = 1, limit = 20 } = req.query;
 
-    // Validar que page e limit são números positivos
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
     if (isNaN(pageNum) || pageNum < 1) {
@@ -96,7 +94,6 @@ app.get('/api/historico/partidas', ensureValidToken, async (req, res) => {
       return res.status(400).json({ error: 'Parâmetro "limit" deve ser um número positivo' });
     }
 
-    // Construir a URL com os parâmetros dinâmicos
     const url = `https://api.caveiratips.com/api/v1/historico/partidas?page=${pageNum}&limit=${limitNum}`;
     console.log(`Proxy: Buscando histórico de partidas em ${url}`);
 
@@ -143,8 +140,6 @@ app.get('/api/v1/historico/partidas-assincrono', ensureValidToken, async (req, r
       },
     });
 
-    console.log(`Status da resposta da API partidas-assincrono: ${response.status} ${response.statusText}`);
-
     if (!response.ok) {
       const errorText = await response.text();
       console.log(`Detalhes do erro da API partidas-assincrono: ${errorText}`);
@@ -152,7 +147,6 @@ app.get('/api/v1/historico/partidas-assincrono', ensureValidToken, async (req, r
     }
 
     const data = await response.json();
-    console.log('Dados partidas-assincrono recebidos:', data);
     res.json(data);
   } catch (error) {
     console.error('Erro ao buscar dados de partidas assíncronas:', error);
@@ -184,8 +178,6 @@ app.get('/api/v1/historico/confronto/:player1/:player2', ensureValidToken, async
       },
     });
 
-    console.log(`Status da resposta da API confronto: ${response.status} ${response.statusText}`);
-
     if (!response.ok) {
       const errorText = await response.text();
       console.log(`Detalhes do erro da API confronto: ${errorText}`);
@@ -193,7 +185,6 @@ app.get('/api/v1/historico/confronto/:player1/:player2', ensureValidToken, async
     }
 
     const data = await response.json();
-    console.log('Dados de confronto H2H recebidos:', data);
     res.json(data);
   } catch (error) {
     console.error('Erro ao buscar dados de confronto H2H:', error);
