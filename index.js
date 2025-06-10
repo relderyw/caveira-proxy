@@ -3,7 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT;
+const port = process.env.PORT || 10000; // Define um valor padrão para port
 
 app.use(cors());
 
@@ -12,6 +12,11 @@ let refreshToken = null;
 
 async function captureAuthorizationToken() {
   try {
+    console.log('Tentando capturar token. Credenciais:', {
+      username: process.env.API_USERNAME ? 'definido' : 'não definido',
+      password: process.env.API_PASSWORD ? 'definido' : 'não definido'
+    });
+
     const loginUrl = 'https://api.caveiratips.com/api/v1/auth/token/';
     const response = await fetch(loginUrl, {
       method: 'POST',
@@ -29,13 +34,15 @@ async function captureAuthorizationToken() {
     });
 
     if (!response.ok) {
-      throw new Error(`Falha ao capturar token: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`Falha na autenticação: ${response.status} ${response.statusText}. Detalhes: ${errorText}`);
+      throw new Error(`Falha na autenticação: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
     accessToken = data.access_token;
     refreshToken = data.refresh_token || null;
-    console.log('Novo token capturado:', accessToken);
+    console.log('Token capturado com sucesso:', accessToken);
     return { accessToken, refreshToken };
   } catch (error) {
     console.error('Erro ao capturar token:', error.message);
@@ -51,10 +58,13 @@ async function ensureValidToken(req, res, next) {
       accessToken = tokens.accessToken;
       refreshToken = tokens.refreshToken;
     }
+    if (!accessToken) {
+      throw new Error('Token de autorização não foi obtido');
+    }
     req.accessToken = accessToken;
     next();
   } catch (error) {
-    res.status(500).json({ error: 'Falha ao obter o token de autorização' });
+    res.status(500).json({ error: 'Falha ao obter o token de autorização: ' + error.message });
   }
 }
 
@@ -164,7 +174,6 @@ app.get('/api/v1/historico/confronto/:player1/:player2', ensureValidToken, async
       return res.status(400).json({ error: 'Parâmetros "player1" e "player2" são obrigatórios' });
     }
 
-    // Ajuste na rota upstream para verificar a correta
     const url = `https://api.caveiratips.com/api/v1/analises/confrontos-completo/${encodeURIComponent(player1)}/${encodeURIComponent(player2)}`;
     console.log(`Proxy: Buscando confronto H2H em ${url}`);
 
