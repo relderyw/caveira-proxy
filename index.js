@@ -58,6 +58,7 @@ async function ensureValidToken(req, res, next) {
   }
 }
 
+// Rotas existentes...
 app.get('/api/matches/live', ensureValidToken, async (req, res) => {
   try {
     const response = await fetch('https://api.caveiratips.com/api/v1/matches/live', {
@@ -163,6 +164,7 @@ app.get('/api/v1/historico/confronto/:player1/:player2', ensureValidToken, async
       return res.status(400).json({ error: 'Parâmetros "player1" e "player2" são obrigatórios' });
     }
 
+    // Ajuste na rota upstream para verificar a correta
     const url = `https://api.caveiratips.com/api/v1/analises/confrontos-completo/${encodeURIComponent(player1)}/${encodeURIComponent(player2)}`;
     console.log(`Proxy: Buscando confronto H2H em ${url}`);
 
