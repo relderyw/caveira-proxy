@@ -77,7 +77,7 @@ app.get('/api/matches/live', ensureValidToken, async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error('Erro ao buscar dados ao vivo:', error);
-    res.status(500).json({ error: 'Erro ao buscar dados da API ao vivo' });
+    res.status(500).json({代替: 'Erro ao buscar dados da API ao vivo' });
   }
 });
 
@@ -189,6 +189,30 @@ app.get('/api/v1/historico/confronto/:player1/:player2', ensureValidToken, async
   } catch (error) {
     console.error('Erro ao buscar dados de confronto H2H:', error);
     res.status(500).json({ error: 'Erro ao buscar dados da API de confronto H2H' });
+  }
+});
+
+app.get('/api/scraped-matches', async (req, res) => {
+  try {
+    const url = 'https://api-pre-live.caveiratips.com.br/api/v1/scraped-matches?league_ids=10047781%2C10083563%2C10082427%2C10048705';
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'x-api-key': process.env.SCRAPED_MATCHES_API_KEY,
+        'Accept': '*/*',
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Falha na requisição: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Erro ao buscar dados de partidas scraped:', error);
+    res.status(500).json({ error: 'Erro ao buscar dados da API de partidas scraped' });
   }
 });
 
