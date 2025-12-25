@@ -261,7 +261,7 @@ app.get('/api/app3/confronto', async (req, res) => {
         'Accept': 'application/json',
         'Authorization': token,
         'Origin': 'https://app3.caveiratips.com.br',
-        'Referer': 'https://app3.caveiratips.com.br/app3/confronto',
+        'Referer': 'https://app3.caveiratips.com.br/app3//confronto',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
     });
@@ -277,7 +277,7 @@ app.get('/api/app3/confronto', async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    console.error('Erro na rota /api/app3/confronto:', error.message);
+    console.error('Erro na rota /api/app3//confronto:', error.message);
     res.status(500).json({ error: 'Erro ao buscar confronto H2H (app3)' });
   }
 });
