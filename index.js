@@ -6,12 +6,14 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
+app.use(express.json());
 
-let accessToken = null;
-let refreshToken = null;
+// ===============================================
+// TOKEN PARA API PRINCIPAL (caveiratips.com)
+// ===============================================
+let accessToken = null; // Token da API principal
 
-// Função para capturar o token de autenticação
-async function captureAuthorizationToken() {
+async function captureMainApiToken() {
   try {
     const loginUrl = 'https://api.caveiratips.com/api/v1/auth/token/';
     const response = await fetch(loginUrl, {
@@ -21,7 +23,7 @@ async function captureAuthorizationToken() {
         'Accept': 'application/json',
         'Origin': 'https://caveiratips.com',
         'Referer': 'https://caveiratips.com/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
       body: JSON.stringify({
         username: process.env.API_USERNAME,
@@ -29,190 +31,178 @@ async function captureAuthorizationToken() {
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`Falha ao capturar token: ${response.status} ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`Login principal falhou: ${response.status}`);
 
     const data = await response.json();
     accessToken = data.access_token;
-    refreshToken = data.refresh_token || null;
-    console.log('Novo token capturado com sucesso!');
-    return { accessToken, refreshToken };
+    console.log('✅ Token principal (caveiratips.com) capturado com sucesso');
+    return accessToken;
   } catch (error) {
-    console.error('Erro ao capturar token:', error.message);
+    console.error('❌ Erro ao capturar token principal:', error.message);
     throw error;
   }
 }
 
-// Middleware para garantir token válido
-async function ensureValidToken(req, res, next) {
+async function ensureMainApiToken(req, res, next) {
   try {
     if (!accessToken) {
-      console.log('Token não encontrado. Capturando novo token...');
-      await captureAuthorizationToken();
+      await captureMainApiToken();
     }
     req.accessToken = accessToken;
     next();
   } catch (error) {
-    res.status(500).json({ error: 'Falha ao obter o token de autorização' });
+    res.status(500).json({ error: 'Falha ao obter token principal' });
   }
 }
 
-// 1. Jogos ao vivo
-app.get('/api/matches/live', ensureValidToken, async (req, res) => {
+// ===============================================
+// TOKEN PARA APP3 (dev3.caveira.tips)
+// ===============================================
+let app3Token = null;
+let app3TokenExpiry = 0;
+
+async function getApp3Token() {
+  if (app3Token && Date.now() < app3TokenExpiry) {
+    return app3Token;
+  }
+
   try {
-    const response = await fetch('https://api.caveiratips.com/api/v1/matches/live', {
-      method: 'GET',
+    const response = await fetch('https://api.dev3.caveira.tips/v1/auth/login', {
+      method: 'POST',
       headers: {
-        'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.accessToken}`,
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
+      body: JSON.stringify({
+        login: process.env.APP3_EMAIL || "reldery1422@gmail.com",
+        password: process.env.APP3_PASSWORD || "131609@sH",
+      }),
     });
 
-    if (!response.ok) throw new Error(`Erro: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Login app3 falhou: ${response.status} ${await response.text()}`);
+    }
 
+    const data = await response.json();
+
+    // Função para extrair token profundamente
+    const findToken = (obj) => {
+      if (!obj) return null;
+      if (obj.data?.user?.access_token) return obj.data.user.access_token;
+      if (obj.access_token) return obj.access_token;
+      if (obj.token) return obj.token;
+      for (const key in obj) {
+        if (typeof obj[key] === 'string' && obj[key].length > 50 && /token/i.test(key)) {
+          return obj[key];
+        }
+        if (typeof obj[key] === 'object') {
+          const found = findToken(obj[key]);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const token = findToken(data);
+    if (!token) throw new Error("Token app3 não encontrado na resposta");
+
+    app3Token = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    app3TokenExpiry = Date.now() + 20 * 60 * 1000; // 20 minutos de margem
+    console.log('✅ Novo token app3 capturado com sucesso');
+    return app3Token;
+  } catch (error) {
+    console.error('❌ Erro ao obter token app3:', error.message);
+    throw error;
+  }
+}
+
+// ===============================================
+// ROTAS
+// ===============================================
+
+// 1. Jogos ao vivo (API principal)
+app.get('/api/matches/live', ensureMainApiToken, async (req, res) => {
+  try {
+    const response = await fetch('https://api.caveiratips.com/api/v1/matches/live', {
+      headers: {
+        'Authorization': `Bearer ${req.accessToken}`,
+        'Accept': 'application/json',
+      },
+    });
+    if (!response.ok) throw new Error(`Erro: ${response.status}`);
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    console.error('Erro ao buscar jogos ao vivo:', error);
+    console.error('Erro /api/matches/live:', error.message);
     res.status(500).json({ error: 'Erro ao buscar jogos ao vivo' });
   }
 });
 
-// 2. Histórico de partidas (paginado)
-app.get('/api/historico/partidas', ensureValidToken, async (req, res) => {
+// 2. Histórico de partidas
+app.get('/api/historico/partidas', ensureMainApiToken, async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-
-    if (isNaN(pageNum) || pageNum < 1) return res.status(400).json({ error: 'Parâmetro "page" inválido' });
-    if (isNaN(limitNum) || limitNum < 1) return res.status(400).json({ error: 'Parâmetro "limit" inválido' });
-
-    const url = `https://api.caveiratips.com/api/v1/historico/partidas?page=${pageNum}&limit=${limitNum}`;
+    const url = `https://api.caveiratips.com/api/v1/historico/partidas?page=${page}&limit=${limit}`;
     const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.accessToken}`,
-      },
+      headers: { 'Authorization': `Bearer ${req.accessToken}` },
     });
-
     if (!response.ok) throw new Error(`Erro: ${response.status}`);
-
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    console.error('Erro ao buscar histórico de partidas:', error);
-    res.status(500).json({ error: 'Erro ao buscar histórico de partidas' });
+    res.status(500).json({ error: 'Erro no histórico' });
   }
 });
 
 // 3. Histórico assíncrono por jogador
-app.get('/api/v1/historico/partidas-assincrono', ensureValidToken, async (req, res) => {
+app.get('/api/v1/historico/partidas-assincrono', ensureMainApiToken, async (req, res) => {
   try {
     const { jogador, limit = 10, page = 1 } = req.query;
-    if (!jogador) return res.status(400).json({ error: 'Parâmetro "jogador" é obrigatório' });
-
+    if (!jogador) return res.status(400).json({ error: 'jogador obrigatório' });
     const url = `https://api.caveiratips.com/api/v1/historico/partidas-assincrono?jogador=${encodeURIComponent(jogador)}&limit=${limit}&page=${page}`;
-    
     const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.accessToken}`,
-        'Origin': 'https://caveiratips.com',
-        'Referer': 'https://caveiratips.com/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
+      headers: { 'Authorization': `Bearer ${req.accessToken}` },
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Erro ${response.status}: ${errorText}`);
-    }
-
+    if (!response.ok) throw new Error(`Erro: ${response.status}`);
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    console.error('Erro no histórico assíncrono:', error);
-    res.status(500).json({ error: 'Erro ao buscar histórico do jogador' });
+    res.status(500).json({ error: 'Erro no histórico do jogador' });
   }
 });
 
-// 4. Confronto direto (H2H)
-app.get('/api/v1/historico/confronto/:player1/:player2', ensureValidToken, async (req, res) => {
+// 4. Confronto direto H2H (API principal)
+app.get('/api/v1/historico/confronto/:player1/:player2', ensureMainApiToken, async (req, res) => {
   try {
     const { player1, player2 } = req.params;
     const { page = 1, limit = 20 } = req.query;
-
-    if (!player1 || !player2) return res.status(400).json({ error: 'Dois jogadores são obrigatórios' });
-
     const url = `https://api.caveiratips.com/api/v1/historico/confronto/${encodeURIComponent(player1)}/${encodeURIComponent(player2)}?page=${page}&limit=${limit}`;
-
     const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.accessToken}`,
-        'Origin': 'https://caveiratips.com',
-        'Referer': 'https://caveiratips.com/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
+      headers: { 'Authorization': `Bearer ${req.accessToken}` },
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`H2H Error: ${errorText}`);
-    }
-
+    if (!response.ok) throw new Error(`Erro H2H: ${response.status}`);
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    console.error('Erro no confronto H2H:', error);
-    res.status(500).json({ error: 'Erro ao buscar confronto entre jogadores' });
+    res.status(500).json({ error: 'Erro no confronto H2H principal' });
   }
 });
 
-// 5. NOVA ROTA: Autocomplete de jogadores
-app.get('/api/historico/jogadores/autocomplete', ensureValidToken, async (req, res) => {
+// 5. Autocomplete de jogadores
+app.get('/api/historico/jogadores/autocomplete', ensureMainApiToken, async (req, res) => {
   try {
     const { term, limit = 10 } = req.query;
-
-    if (!term || term.trim() === '') {
-      return res.status(400).json({ error: 'Parâmetro "term" é obrigatório' });
-    }
-
+    if (!term) return res.status(400).json({ error: 'term obrigatório' });
     const url = `https://api.caveiratips.com/api/v1/historico/jogadores/autocomplete?term=${encodeURIComponent(term)}&limit=${limit}`;
-    console.log('Buscando jogadores:', url);
-
     const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${req.accessToken}`,
-        'Origin': 'https://caveiratips.com',
-        'Referer': 'https://caveiratips.com/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
+      headers: { 'Authorization': `Bearer ${req.accessToken}` },
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Erro no autocomplete:', errorText);
-      throw new Error(`Autocomplete falhou: ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`Erro autocomplete: ${response.status}`);
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    console.error('Erro na rota de autocomplete:', error.message);
-    res.status(500).json({ error: 'Erro ao buscar sugestões de jogadores' });
+    res.status(500).json({ error: 'Erro no autocomplete' });
   }
 });
 
@@ -221,65 +211,47 @@ app.get('/api/scraped-matches', async (req, res) => {
   try {
     const url = 'https://api-pre-live.caveiratips.com.br/api/v1/scraped-matches?league_ids=10047781%2C10083563%2C10082427%2C10048705';
     const response = await fetch(url, {
-      method: 'GET',
       headers: {
         'x-api-key': process.env.SCRAPED_MATCHES_API_KEY,
         'Accept': '*/*',
-        'Content-Type': 'application/json',
       },
     });
-
     if (!response.ok) throw new Error(`Erro scraped: ${response.status}`);
-
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    console.error('Erro ao buscar partidas scraped:', error);
-    res.status(500).json({ error: 'Erro ao carregar partidas ao vivo (scraped)' });
+    res.status(500).json({ error: 'Erro ao carregar partidas scraped' });
   }
 });
 
-// Inicia o servidor
-app.listen(port, () => {
-  console.log(`Proxy Caveira Tips rodando na porta ${port}`);
-  console.log(`http://localhost:${port}`);
-});
-
-// 7. NOVA ROTA: Live events da app3 (pública - sem token)
+// 7. Live events da app3 (PÚBLICO - sem token)
 app.get('/api/app3/live-events', async (req, res) => {
   try {
-    const timestamp = Date.now();
-    const url = `https://app3.caveiratips.com.br/api/live-events/?nocache=${timestamp}`;
-
+    const url = `https://app3.caveiratips.com.br/api/live-events/?nocache=${Date.now()}`;
     const response = await fetch(url, {
-      method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0',
       },
     });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Live events falhou: ${response.status} - ${text.substring(0, 200)}`);
-    }
-
+    if (!response.ok) throw new Error(`Live app3 falhou: ${response.status}`);
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    console.error('Erro ao buscar live-events da app3:', error.message);
-    res.status(500).json({ error: 'Falha ao carregar eventos ao vivo (app3)' });
+    console.error('Erro /api/app3/live-events:', error.message);
+    res.status(500).json({ error: 'Falha ao carregar eventos ao vivo app3' });
   }
 });
 
-// 8. NOVA ROTA: Confronto H2H da app3 (com token renovado automaticamente)
-app.get('/api/app3/confronto', ensureValidToken, async (req, res) => {
+// 8. Confronto H2H da app3 (COM TOKEN DINÂMICO DA DEV3)
+app.get('/api/app3/confronto', async (req, res) => {
   try {
     const { player1, player2, interval = 30 } = req.query;
-
     if (!player1 || !player2) {
       return res.status(400).json({ error: 'player1 e player2 são obrigatórios' });
     }
+
+    const token = await getApp3Token(); // Token renovado automaticamente
 
     const url = `https://app3.caveiratips.com.br/app3//api/confronto/?player1=${encodeURIComponent(player1)}&player2=${encodeURIComponent(player2)}&interval=${interval}&t=${Date.now()}`;
 
@@ -287,7 +259,7 @@ app.get('/api/app3/confronto', ensureValidToken, async (req, res) => {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'Authorization': `Bearer ${req.accessToken}`,
+        'Authorization': token,
         'Origin': 'https://app3.caveiratips.com.br',
         'Referer': 'https://app3.caveiratips.com.br/app3/confronto',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -296,13 +268,25 @@ app.get('/api/app3/confronto', ensureValidToken, async (req, res) => {
 
     if (!response.ok) {
       const text = await response.text();
+      if (response.status === 401) {
+        app3Token = null; // Invalida token para forçar novo login
+      }
       throw new Error(`H2H app3 falhou: ${response.status} - ${text.substring(0, 200)}`);
     }
 
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    console.error('Erro no confronto app3:', error.message);
-    res.status(500).json({ error: 'Erro ao buscar confronto (app3)' });
+    console.error('Erro na rota /api/app3/confronto:', error.message);
+    res.status(500).json({ error: 'Erro ao buscar confronto H2H (app3)' });
   }
+});
+
+// ===============================================
+// INICIAR SERVIDOR
+// ===============================================
+app.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 Proxy Caveira Tips rodando na porta ${port}`);
+  console.log(`🔗 http://localhost:${port}`);
+  console.log(`🌐 Deploy: https://rwtips-r943.onrender.com`);
 });
