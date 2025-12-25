@@ -244,3 +244,65 @@ app.listen(port, () => {
   console.log(`Proxy Caveira Tips rodando na porta ${port}`);
   console.log(`http://localhost:${port}`);
 });
+
+// 7. NOVA ROTA: Live events da app3 (pública - sem token)
+app.get('/api/app3/live-events', async (req, res) => {
+  try {
+    const timestamp = Date.now();
+    const url = `https://app3.caveiratips.com.br/api/live-events/?nocache=${timestamp}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Live events falhou: ${response.status} - ${text.substring(0, 200)}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Erro ao buscar live-events da app3:', error.message);
+    res.status(500).json({ error: 'Falha ao carregar eventos ao vivo (app3)' });
+  }
+});
+
+// 8. NOVA ROTA: Confronto H2H da app3 (com token renovado automaticamente)
+app.get('/api/app3/confronto', ensureValidToken, async (req, res) => {
+  try {
+    const { player1, player2, interval = 30 } = req.query;
+
+    if (!player1 || !player2) {
+      return res.status(400).json({ error: 'player1 e player2 são obrigatórios' });
+    }
+
+    const url = `https://app3.caveiratips.com.br/app3//api/confronto/?player1=${encodeURIComponent(player1)}&player2=${encodeURIComponent(player2)}&interval=${interval}&t=${Date.now()}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${req.accessToken}`,
+        'Origin': 'https://app3.caveiratips.com.br',
+        'Referer': 'https://app3.caveiratips.com.br/app3/confronto',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`H2H app3 falhou: ${response.status} - ${text.substring(0, 200)}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Erro no confronto app3:', error.message);
+    res.status(500).json({ error: 'Erro ao buscar confronto (app3)' });
+  }
+});
