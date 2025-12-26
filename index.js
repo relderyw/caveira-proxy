@@ -12,7 +12,7 @@ app.use(express.json());
 // ===============================================
 // TOKEN PARA API PRINCIPAL (caveiratips.com)
 // ===============================================
-let accessToken = null; // Token da API principal
+let accessToken = null;
 
 async function captureMainApiToken() {
   try {
@@ -57,23 +57,25 @@ async function ensureMainApiToken(req, res, next) {
 }
 
 // ===============================================
-// TOKEN PARA APP3 (dev3.caveira.tips)
+// TOKEN PARA DEV3 / APP3 (api.dev3.caveira.tips) - AUTOMÁTICO
 // ===============================================
-let app3Token = null;
-let app3TokenExpiry = 0;
+let dev3Token = null;
+let dev3TokenExpiry = 0;
+const DEV3_LOGIN_URL = 'https://api.dev3.caveira.tips/v1/auth/login';
+const DEV3_TOKEN_VALIDITY_MS = 18 * 60 * 1000; // 18 minutos (margem segura, token dura ~20-30min)
 
-async function getApp3Token() {
-  if (app3Token && Date.now() < app3TokenExpiry) {
-    return app3Token;
-  }
-
+async function captureDev3Token() {
   try {
-    const response = await fetch('https://api.dev3.caveira.tips/v1/auth/login', {
+    console.log('[Dev3] Capturando novo token via login automático...');
+
+    const response = await fetch(DEV3_LOGIN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Origin': 'https://app2.caveira.tips',
+        'Referer': 'https://app2.caveira.tips/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 OPR/125.0.0.0'
       },
       body: JSON.stringify({
         login: process.env.APP3_EMAIL || "reldery1422@gmail.com",
@@ -82,22 +84,18 @@ async function getApp3Token() {
     });
 
     if (!response.ok) {
-      throw new Error(`Login app3 falhou: ${response.status} ${await response.text()}`);
+      const text = await response.text();
+      throw new Error(`Login dev3 falhou: ${response.status} - ${text.substring(0, 300)}`);
     }
 
     const data = await response.json();
 
-    // Função para extrair token profundamente
+    // Busca o token em qualquer lugar da resposta (muito comum mudar de lugar)
     const findToken = (obj) => {
-      if (!obj) return null;
-      if (obj.data?.user?.access_token) return obj.data.user.access_token;
-      if (obj.access_token) return obj.access_token;
-      if (obj.token) return obj.token;
-      for (const key in obj) {
-        if (typeof obj[key] === 'string' && obj[key].length > 50 && /token/i.test(key)) {
-          return obj[key];
-        }
-        if (typeof obj[key] === 'object') {
+      if (typeof obj === 'string' && obj.length > 50 && (obj.includes('.') || obj.startsWith('oat_'))) return obj;
+      if (obj && typeof obj === 'object') {
+        for (const key in obj) {
+          if (key.toLowerCase().includes('token') && typeof obj[key] === 'string') return obj[key];
           const found = findToken(obj[key]);
           if (found) return found;
         }
@@ -105,16 +103,40 @@ async function getApp3Token() {
       return null;
     };
 
-    const token = findToken(data);
-    if (!token) throw new Error("Token app3 não encontrado na resposta");
+    const rawToken = findToken(data);
+    if (!rawToken) {
+      console.error('Resposta completa do login dev3:', data);
+      throw new Error('Token dev3 não encontrado na resposta');
+    }
 
-    app3Token = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-    app3TokenExpiry = Date.now() + 20 * 60 * 1000; // 20 minutos de margem
-    console.log('✅ Novo token app3 capturado com sucesso');
-    return app3Token;
+    dev3Token = rawToken.startsWith('Bearer ') ? rawToken : `Bearer ${rawToken}`;
+    dev3TokenExpiry = Date.now() + DEV3_TOKEN_VALIDITY_MS;
+
+    console.log('✅ Token dev3 capturado com sucesso! Válido por ~18 minutos.');
+    return dev3Token;
+
   } catch (error) {
-    console.error('❌ Erro ao obter token app3:', error.message);
+    console.error('❌ Erro ao capturar token dev3:', error.message);
+    dev3Token = null;
+    dev3TokenExpiry = 0;
     throw error;
+  }
+}
+
+async function getValidDev3Token() {
+  if (dev3Token && Date.now() < dev3TokenExpiry) {
+    return dev3Token;
+  }
+  return await captureDev3Token();
+}
+
+// Middleware para garantir token válido nas rotas dev3/app3
+async function ensureDev3Token(req, res, next) {
+  try {
+    req.dev3Token = await getValidDev3Token();
+    next();
+  } catch (error) {
+    res.status(500).json({ error: 'Falha na autenticação com dev3.caveira.tips (token indisponível)' });
   }
 }
 
@@ -244,35 +266,36 @@ app.get('/api/app3/live-events', async (req, res) => {
   }
 });
 
-// 8. Confronto H2H da app3 (COM TOKEN DINÂMICO DA DEV3)
-app.get('/api/app3/confronto', async (req, res) => {
+// 8. Confronto H2H da app3 (usa token dev3 automático)
+app.get('/api/app3/confronto', ensureDev3Token, async (req, res) => {
   try {
     const { player1, player2, interval = 30 } = req.query;
     if (!player1 || !player2) {
       return res.status(400).json({ error: 'player1 e player2 são obrigatórios' });
     }
 
-    const token = await getApp3Token(); // Token renovado automaticamente
-
-    const url = `https://app3.caveiratips.com.br/app3/api/confronto/?player1=${encodeURIComponent(player1)}&player2=${encodeURIComponent(player2)}&interval=${interval}&t=${Date.now()}`;
+    const url = `https://app3.caveiratips.com.br/app3//api/confronto/?player1=${encodeURIComponent(player1)}&player2=${encodeURIComponent(player2)}&interval=${interval}&t=${Date.now()}`;
 
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'Authorization': token,
+        'Authorization': req.dev3Token,
         'Origin': 'https://app3.caveiratips.com.br',
-        'Referer': 'https://app3.caveiratips.com.br/app3//confronto',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://app3.caveiratips.com.br/app3/confronto',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 OPR/125.0.0.0'
       },
     });
 
+    if (response.status === 401) {
+      console.log('[Dev3] Token expirado (401). Será renovado na próxima chamada.');
+      dev3Token = null;
+      dev3TokenExpiry = 0;
+    }
+
     if (!response.ok) {
       const text = await response.text();
-      if (response.status === 401) {
-        app3Token = null; // Invalida token para forçar novo login
-      }
-      throw new Error(`H2H app3 falhou: ${response.status} - ${text.substring(0, 200)}`);
+      throw new Error(`H2H app3 falhou: ${response.status} - ${text.substring(0, 300)}`);
     }
 
     const data = await response.json();
@@ -283,41 +306,56 @@ app.get('/api/app3/confronto', async (req, res) => {
   }
 });
 
-// 9. Histórico de jogos (POST - Search) para App3
-app.post('/api/app3/history', async (req, res) => {
+// 9. Histórico completo (POST search) da dev3
+app.post('/api/app3/history', ensureDev3Token, async (req, res) => {
   try {
     const { query, filters } = req.body;
-    const token = await getApp3Token();
+
+    if (!query || !filters) {
+      return res.status(400).json({ error: 'query e filters são obrigatórios no body' });
+    }
 
     const response = await fetch('https://esoccer.dev3.caveira.tips/v1/esoccer/search', {
       method: 'POST',
       headers: {
-        'Authorization': token,
+        'Authorization': req.dev3Token,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0'
+        'Origin': 'https://app2.caveira.tips',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
       body: JSON.stringify({ query, filters })
     });
 
+    if (response.status === 401) {
+      console.log('[Dev3] Token expirado no histórico. Renovando na próxima...');
+      dev3Token = null;
+      dev3TokenExpiry = 0;
+    }
+
     if (!response.ok) {
-        if (response.status === 401) app3Token = null;
-        throw new Error(`History search falhou: ${response.status}`);
+      const text = await response.text();
+      throw new Error(`Busca histórica dev3 falhou: ${response.status} - ${text.substring(0, 300)}`);
     }
 
     const data = await response.json();
     res.json(data);
   } catch (error) {
     console.error('Erro /api/app3/history:', error.message);
-    res.status(500).json({ error: 'Erro ao buscar histórico' });
+    res.status(500).json({ error: 'Erro ao buscar histórico completo (dev3)' });
   }
 });
 
 // ===============================================
 // INICIAR SERVIDOR
 // ===============================================
+
+// Carrega tokens ao iniciar (não bloqueia o startup)
+captureMainApiToken().catch(() => console.warn('Token principal será capturado na primeira requisição'));
+captureDev3Token().catch(() => console.warn('Token dev3 será capturado na primeira requisição da app3'));
+
 app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 Proxy Caveira Tips rodando na porta ${port}`);
-  console.log(`🔗 http://localhost:${port}`);
+  console.log(`🔗 Local: http://localhost:${port}`);
   console.log(`🌐 Deploy: https://rwtips-r943.onrender.com`);
 });
