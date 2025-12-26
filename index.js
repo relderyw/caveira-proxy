@@ -1,9 +1,10 @@
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
@@ -279,6 +280,36 @@ app.get('/api/app3/confronto', async (req, res) => {
   } catch (error) {
     console.error('Erro na rota /api/app3//confronto:', error.message);
     res.status(500).json({ error: 'Erro ao buscar confronto H2H (app3)' });
+  }
+});
+
+// 9. Histórico de jogos (POST - Search) para App3
+app.post('/api/app3/history', async (req, res) => {
+  try {
+    const { query, filters } = req.body;
+    const token = await getApp3Token();
+
+    const response = await fetch('https://esoccer.dev3.caveira.tips/v1/esoccer/search', {
+      method: 'POST',
+      headers: {
+        'Authorization': token,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0'
+      },
+      body: JSON.stringify({ query, filters })
+    });
+
+    if (!response.ok) {
+        if (response.status === 401) app3Token = null;
+        throw new Error(`History search falhou: ${response.status}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Erro /api/app3/history:', error.message);
+    res.status(500).json({ error: 'Erro ao buscar histórico' });
   }
 });
 
