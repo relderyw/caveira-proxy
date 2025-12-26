@@ -254,7 +254,7 @@ app.get('/api/app3/confronto', async (req, res) => {
 
     const token = await getApp3Token(); // Token renovado automaticamente
 
-    const url = `https://app3.caveiratips.com.br/app3//api/confronto/?player1=${encodeURIComponent(player1)}&player2=${encodeURIComponent(player2)}&interval=${interval}&t=${Date.now()}`;
+    const url = `https://app3.caveiratips.com.br/app3/api/confronto/?player1=${encodeURIComponent(player1)}&player2=${encodeURIComponent(player2)}&interval=${interval}&t=${Date.now()}`;
 
     const response = await fetch(url, {
       method: 'GET',
