@@ -278,7 +278,7 @@ app.get('/api/app3/confronto', async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    console.error('Erro na rota /api/app3//confronto:', error.message);
+    console.error('Erro na rota /api/app3/confronto:', error.message);
     res.status(500).json({ error: 'Erro ao buscar confronto H2H (app3)' });
   }
 });
