@@ -414,6 +414,49 @@ app.post('/api/app3/history', ensureDev3Token, async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar histórico' });
   }
 });
+// 10. Busca/autocomplete de jogadores na app3 antiga (endpoint /api/players/)
+app.get('/api/app3/players', ensureApp3OldToken, async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    if (!query) {
+      return res.status(400).json({ error: 'Parâmetro "query" é obrigatório' });
+    }
+
+    const url = `https://app3.caveiratips.com.br/app3//api/players/?query=${encodeURIComponent(query)}&t=${Date.now()}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': req.app3OldToken,  // Token hex longo (Bearer ...)
+        'Origin': 'https://app3.caveiratips.com.br',
+        'Referer': 'https://app3.caveiratips.com.br/app3/confronto',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 OPR/125.0.0.0',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+      },
+    });
+
+    // Se der 401, invalida o token para forçar renovação na próxima chamada
+    if (response.status === 401) {
+      console.log('[App3 Antiga] Token expirado na rota players (401). Renovando na próxima requisição...');
+      app3OldToken = null;
+      app3OldTokenExpiry = 0;
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Busca de jogadores falhou: ${response.status} - ${text.substring(0, 300)}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Erro na rota /api/app3/players:', error.message);
+    res.status(500).json({ error: 'Erro ao buscar jogadores (app3)' });
+  }
+});
 
 // ===============================================
 // INICIAR SERVIDOR
