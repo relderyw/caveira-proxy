@@ -458,6 +458,46 @@ app.get('/api/app3/players', ensureApp3OldToken, async (req, res) => {
   }
 });
 
+// 11. Jogos inplay / ao vivo da dev3 (usa o mesmo token oat_... do dev3)
+app.get('/api/app3/inplay', ensureDev3Token, async (req, res) => {
+  try {
+    const url = 'https://esoccer.dev3.caveira.tips/v1/esoccer/inplay';
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': req.dev3Token,                 // Token oat_... Bearer
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Origin': 'https://app2.caveira.tips',
+        'Referer': 'https://app2.caveira.tips/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 OPR/125.0.0.0',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+      },
+      body: JSON.stringify({})  // Body vazio, como na requisição original
+    });
+
+    // Tratamento de token expirado (401) - mesma lógica que você já usa
+    if (response.status === 401) {
+      console.log('[Dev3] Token expirado na rota inplay (401). Renovando na próxima requisição...');
+      dev3Token = null;
+      dev3TokenExpiry = 0;
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Inplay dev3 falhou: ${response.status} - ${text.substring(0, 300)}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Erro na rota /api/app3/inplay:', error.message);
+    res.status(500).json({ error: 'Erro ao buscar jogos inplay (dev3)' });
+  }
+});
+
 // ===============================================
 // INICIAR SERVIDOR
 // ===============================================
