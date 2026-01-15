@@ -508,30 +508,32 @@ app.get('/api/sokkerpro/livescores', async (req, res) => {
     const url = 'https://m2.sokkerpro.com/livescores';
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 OPR/125.0.0.0',
-        'Referer': 'https://sokkerpro.com/',
-        'Origin': 'https://sokkerpro.com',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'same-site',
-        'Priority': 'u=1, i'
+        'authority': 'm2.sokkerpro.com',
+        'accept': 'application/json, text/plain, */*',
+        'accept-language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+        'origin': 'https://sokkerpro.com',
+        'referer': 'https://sokkerpro.com/',
+        'sec-ch-ua': '"Opera Air";v="125", "Not?A_Brand";v="8", "Chromium";v="141"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-site',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 OPR/125.0.0.0',
+        'priority': 'u=1, i'
       }
     });
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`SokkerPro Livescores falhou: ${response.status} - ${text.substring(0, 150)}`);
+      // Only show a short snippet of the error to avoid flooding logs with HTML
+      throw new Error(`SokkerPro Livescores falhou: ${response.status} - ${text.substring(0, 50)}...`);
     }
 
     const data = await response.json();
     res.json(data);
   } catch (error) {
     console.error('Erro /api/sokkerpro/livescores:', error.message);
-    // Returning the actual error message to help debugging
     res.status(500).json({ error: error.message });
   }
 });
@@ -544,30 +546,31 @@ app.get('/api/sokkerpro/fixture/:id', async (req, res) => {
     
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 OPR/125.0.0.0',
-        'Referer': 'https://sokkerpro.com/',
-        'Origin': 'https://sokkerpro.com',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'same-site',
-        'Priority': 'u=1, i'
+        'authority': 'm2.sokkerpro.com',
+        'accept': 'application/json, text/plain, */*',
+        'accept-language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+        'origin': 'https://sokkerpro.com',
+        'referer': 'https://sokkerpro.com/',
+        'sec-ch-ua': '"Opera Air";v="125", "Not?A_Brand";v="8", "Chromium";v="141"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-site',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 OPR/125.0.0.0',
+        'priority': 'u=1, i'
       }
     });
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`SokkerPro Fixture ${id} falhou: ${response.status} - ${text.substring(0, 150)}`);
+      throw new Error(`SokkerPro Fixture ${id} falhou: ${response.status} - ${text.substring(0, 50)}...`);
     }
 
     const data = await response.json();
     res.json(data);
   } catch (error) {
     console.error(`Erro /api/sokkerpro/fixture/${req.params.id}:`, error.message);
-    // Returning the actual error message to help debugging
     res.status(500).json({ error: error.message });
   }
 });
