@@ -510,20 +510,29 @@ app.get('/api/sokkerpro/livescores', async (req, res) => {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 OPR/125.0.0.0',
         'Referer': 'https://sokkerpro.com/',
-        'Origin': 'https://sokkerpro.com'
+        'Origin': 'https://sokkerpro.com',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-site',
+        'Priority': 'u=1, i'
       }
     });
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`SokkerPro Livescores falhou: ${response.status} - ${text.substring(0, 100)}`);
+      throw new Error(`SokkerPro Livescores falhou: ${response.status} - ${text.substring(0, 150)}`);
     }
 
     const data = await response.json();
     res.json(data);
   } catch (error) {
     console.error('Erro /api/sokkerpro/livescores:', error.message);
-    res.status(500).json({ error: 'Erro ao buscar livescores do SokkerPro' });
+    // Returning the actual error message to help debugging
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -537,20 +546,29 @@ app.get('/api/sokkerpro/fixture/:id', async (req, res) => {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 OPR/125.0.0.0',
         'Referer': 'https://sokkerpro.com/',
-        'Origin': 'https://sokkerpro.com'
+        'Origin': 'https://sokkerpro.com',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-site',
+        'Priority': 'u=1, i'
       }
     });
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`SokkerPro Fixture ${id} falhou: ${response.status} - ${text.substring(0, 100)}`);
+      throw new Error(`SokkerPro Fixture ${id} falhou: ${response.status} - ${text.substring(0, 150)}`);
     }
 
     const data = await response.json();
     res.json(data);
   } catch (error) {
     console.error(`Erro /api/sokkerpro/fixture/${req.params.id}:`, error.message);
-    res.status(500).json({ error: 'Erro ao buscar detalhes da partida no SokkerPro' });
+    // Returning the actual error message to help debugging
+    res.status(500).json({ error: error.message });
   }
 });
 
